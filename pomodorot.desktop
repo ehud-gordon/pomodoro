@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Pomodorot
+GenericName=Pomodoro Timer
+Comment=Pomodoro timer with system tray countdown
+Exec=/home/ehud/code/pomodoro/pomodorot.sh
+Icon=/home/ehud/code/pomodoro/pomodorot.png
+Terminal=false
+Categories=Utility;
+Keywords=pomodoro;timer;productivity;focus;
+StartupNotify=true
+X-GNOME-Autostart-enabled=true
