@@ -13,7 +13,7 @@ from config import Settings, load_settings, save_settings
 from engine import PHASE_LABELS, Phase, PomodoroEngine
 from sound import AlarmPlayer, TickPlayer
 from tray import PomodoroTray
-from ui import MainWindow, SettingsDialog
+from ui import MainWindow, PhaseNotice, SettingsDialog
 
 
 class PomodoroApp(QObject):
@@ -24,6 +24,7 @@ class PomodoroApp(QObject):
         self.engine = PomodoroEngine(self.settings)
         self.window = MainWindow()
         self.tray = PomodoroTray()
+        self.notice = PhaseNotice()
         self.tick_player: Optional[TickPlayer] = None
         self.alarm_player: Optional[AlarmPlayer] = None
 
@@ -83,6 +84,13 @@ class PomodoroApp(QObject):
         self.window.update_buttons(running=self.engine.running, phase=phase)
         self.tray.refresh(phase, self.engine.remaining, self.engine.running)
         self.tray.update_actions(running=self.engine.running, phase=phase)
+        msg = {
+            Phase.WORK: "Work session started.",
+            Phase.SHORT_BREAK: "Short break started.",
+            Phase.LONG_BREAK: "Long break started.",
+        }.get(phase)
+        if msg:
+            self.notice.show_message("Pomodoro", msg)
 
     def _on_running_changed(self, running: bool) -> None:
         self.window.update_buttons(running=running, phase=self.engine.phase)
@@ -95,8 +103,8 @@ class PomodoroApp(QObject):
             Phase.SHORT_BREAK: "Short break over — back to work.",
             Phase.LONG_BREAK: "Long break over — back to work.",
         }.get(phase)
-        if msg and self.tray.supportsMessages():
-            self.tray.showMessage("Pomodoro", msg, QSystemTrayIcon.Information, 4000)
+        if msg:
+            self.notice.show_message("Pomodoro", msg)
         if self.settings.alarm and self.alarm_player is not None:
             self.alarm_player.play()
 

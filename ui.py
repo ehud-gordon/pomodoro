@@ -1,16 +1,86 @@
 """Main window and settings dialog."""
 from __future__ import annotations
 
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import QTimer, Qt, pyqtSignal
 from PyQt5.QtGui import QCloseEvent, QFont, QPalette
 from PyQt5.QtWidgets import (
-    QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout,
-    QLabel, QMainWindow, QPushButton, QSpinBox, QVBoxLayout, QWidget,
+    QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout,
+    QHBoxLayout, QLabel, QMainWindow, QPushButton, QSpinBox, QVBoxLayout, QWidget,
 )
 
 from config import DEFAULT_TICK_SOUND, Settings, TICK_SOUND_CHOICES
 from engine import PHASE_LABELS, Phase
 from tray import format_mmss
+
+NOTICE_DISPLAY_MS = 1000
+
+
+# ---- transient phase notice --------------------------------------------
+class PhaseNotice(QWidget):
+    """Frameless on-screen popup shown briefly when a session starts or ends."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            None,
+            Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint,
+        )
+        self.setAttribute(Qt.WA_ShowWithoutActivating, True)
+        self._queue: list[tuple[str, str]] = []
+        self._hide_timer = QTimer(self)
+        self._hide_timer.setSingleShot(True)
+        self._hide_timer.timeout.connect(self._on_display_elapsed)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 16, 20, 16)
+        self._title = QLabel()
+        self._title.setAlignment(Qt.AlignCenter)
+        tf = self._title.font()
+        tf.setPointSize(11)
+        tf.setBold(True)
+        self._title.setFont(tf)
+        self._body = QLabel()
+        self._body.setAlignment(Qt.AlignCenter)
+        self._body.setWordWrap(True)
+        bf = self._body.font()
+        bf.setPointSize(10)
+        self._body.setFont(bf)
+        layout.addWidget(self._title)
+        layout.addWidget(self._body)
+
+        self.setStyleSheet(
+            "PhaseNotice { background-color: #2b2b2b; border-radius: 10px; }"
+            "QLabel { color: #f5f5f5; background: transparent; }"
+        )
+        self.setMaximumWidth(420)
+        self.adjustSize()
+        self.hide()
+
+    def show_message(self, title: str, body: str) -> None:
+        self._queue.append((title, body))
+        if not self._hide_timer.isActive():
+            self._show_next()
+
+    def _show_next(self) -> None:
+        if not self._queue:
+            self.hide()
+            return
+        title, body = self._queue.pop(0)
+        self._title.setText(title)
+        self._body.setText(body)
+        self.adjustSize()
+        screen = QApplication.primaryScreen()
+        if screen is not None:
+            geo = screen.availableGeometry()
+            self.move(
+                geo.center().x() - self.width() // 2,
+                geo.center().y() - self.height() // 2,
+            )
+        self.show()
+        self.raise_()
+        self._hide_timer.start(NOTICE_DISPLAY_MS)
+
+    def _on_display_elapsed(self) -> None:
+        self._show_next()
 
 
 # ---- main window -------------------------------------------------------
